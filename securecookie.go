@@ -12,7 +12,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/base64"
+	"encoding/base32"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -253,7 +253,7 @@ func (s *SecureCookie) SetSerializer(sz Serializer) *SecureCookie {
 // be encoded using the currently selected serializer; see SetSerializer().
 //
 // It is the client's responsibility to ensure that value, when encoded using
-// the current serialization/encryption settings on s and then base64-encoded,
+// the current serialization/encryption settings on s and then base32-encoded,
 // is shorter than the maximum permissible length.
 func (s *SecureCookie) Encode(name string, value interface{}) (string, error) {
 	if s.err != nil {
@@ -281,7 +281,7 @@ func (s *SecureCookie) Encode(name string, value interface{}) (string, error) {
 	mac := createMac(hmac.New(s.hashFunc, s.hashKey), b[:len(b)-1])
 	// Append mac, remove name.
 	b = append(b, mac...)[len(name)+1:]
-	// 4. Encode to base64.
+	// 4. Encode to base32.
 	b = encode(b)
 	// 5. Check length.
 	if s.maxLength != 0 && len(b) > s.maxLength {
@@ -311,7 +311,7 @@ func (s *SecureCookie) Decode(name, value string, dst interface{}) error {
 	if s.maxLength != 0 && len(value) > s.maxLength {
 		return errValueToDecodeTooLong
 	}
-	// 2. Decode from base64.
+	// 2. Decode from base32.
 	b, err := decode([]byte(value))
 	if err != nil {
 		return err
@@ -484,19 +484,19 @@ func (e NopEncoder) Deserialize(src []byte, dst interface{}) error {
 
 // Encoding -------------------------------------------------------------------
 
-// encode encodes a value using base64.
+// encode encodes a value using base32.
 func encode(value []byte) []byte {
-	encoded := make([]byte, base64.URLEncoding.EncodedLen(len(value)))
-	base64.URLEncoding.Encode(encoded, value)
+	encoded := make([]byte, base32.StdEncoding.EncodedLen(len(value)))
+	base32.StdEncoding.Encode(encoded, value)
 	return encoded
 }
 
-// decode decodes a cookie using base64.
+// decode decodes a cookie using base32.
 func decode(value []byte) ([]byte, error) {
-	decoded := make([]byte, base64.URLEncoding.DecodedLen(len(value)))
-	b, err := base64.URLEncoding.Decode(decoded, value)
+	decoded := make([]byte, base32.StdEncoding.DecodedLen(len(value)))
+	b, err := base32.StdEncoding.Decode(decoded, value)
 	if err != nil {
-		return nil, cookieError{cause: err, typ: decodeError, msg: "base64 decode failed"}
+		return nil, cookieError{cause: err, typ: decodeError, msg: "base32 decode failed"}
 	}
 	return decoded[:b], nil
 }
